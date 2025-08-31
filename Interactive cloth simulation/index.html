@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Interactive Cloth Simulation</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #000; 
+            font-family: Arial, sans-serif;
+        }
+        canvas { 
+            display: block; 
+            cursor: default;
+        }
+        
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(40, 40, 40, 0.9);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #666;
+            backdrop-filter: blur(10px);
+            min-width: 200px;
+            font-size: 12px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .controls h3 {
+            margin: 0 0 10px 0;
+            color: #4CAF50;
+            font-size: 14px;
+        }
+        
+        .control-group {
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #555;
+        }
+        
+        .control-group:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        .control-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        
+        .control-item label {
+            color: #ddd;
+            font-size: 11px;
+        }
+        
+        .control-item input[type="range"] {
+            width: 80px;
+            margin-left: 10px;
+        }
+        
+        .control-item button {
+            background: #4CAF50;
+            border: none;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 10px;
+            margin-left: 5px;
+        }
+        
+        .control-item button:hover {
+            background: #5CBF60;
+        }
+        
+        .control-item button.danger {
+            background: #f44336;
+        }
+        
+        .control-item button.danger:hover {
+            background: #f55246;
+        }
+
+        .control-item button.object {
+            background: #2196F3;
+        }
+        
+        .control-item button.object:hover {
+            background: #42A5F5;
+        }
+
+        .control-item select {
+            background: #555;
+            border: 1px solid #666;
+            color: white;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 10px;
+            margin-left: 10px;
+            width: 80px;
+        }
+        
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(40, 40, 40, 0.9);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #666;
+            backdrop-filter: blur(10px);
+            max-width: 350px;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        
+        .instructions h4 {
+            margin: 0 0 8px 0;
+            color: #4CAF50;
+            font-size: 12px;
+        }
+        
+        .instructions ul {
+            margin: 0;
+            padding-left: 15px;
+        }
+        
+        .instructions li {
+            margin-bottom: 3px;
+        }
+        
+        .fps-counter {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(40, 40, 40, 0.9);
+            color: #4CAF50;
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #666;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+
+        .object-controls {
+            background: rgba(30, 60, 120, 0.1);
+            border: 1px solid #2196F3;
+            border-radius: 6px;
+            padding: 8px;
+            margin: 8px 0;
+        }
+
+        .object-controls h4 {
+            color: #2196F3;
+            margin: 0 0 8px 0;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="glCanvas"></canvas>
+    
+    <!-- Controls Panel -->
+    <div class="controls" id="controlPanel">
+        <h3>🎛️ Controlli</h3>
+        
+        <div class="control-group">
+            <div class="control-item">
+                <label>Gravità:</label>
+                <input type="range" id="gravitySlider" min="0" max="20" value="9.81" step="0.1">
+                <span id="gravityValue">9.8</span>
+            </div>
+            <div class="control-item">
+                <label>Rigidità:</label>
+                <input type="range" id="stiffnessSlider" min="0.1" max="1" value="0.8" step="0.05">
+                <span id="stiffnessValue">0.8</span>
+            </div>
+            <div class="control-item">
+                <label>Smorzamento:</label>
+                <input type="range" id="dampingSlider" min="0" max="0.1" value="0.01" step="0.005">
+                <span id="dampingValue">0.01</span>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <div class="control-item">
+                <label>Colore Luce:</label>
+                <input type="color" id="lightColorPicker" value="#FFFFFF">
+            </div>
+            <div class="control-item">
+                <label>Intensità Luce:</label>
+                <input type="range" id="lightIntensitySlider" min="0" max="5" value="1.5" step="0.1">
+                <span id="lightIntensityValue">1.5</span>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <div class="control-item">
+                <label>Texture:</label>
+                <select id="textureSelect">
+                    <option value="none">Nessuna</option>
+                    <option value="silk">Seta</option>
+                    <option value="linen">Lino</option>
+                    <option value="cotton">Cotone</option>
+                    <option value="denim">Jeans</option>
+                    <option value="velvet">Velluto</option>
+                </select>
+            </div>
+            <div class="control-item">
+                <label>Scala Texture:</label>
+                <input type="range" id="textureScaleSlider" min="0.5" max="5" value="1" step="0.1">
+                <span id="textureScaleValue">1.0</span>
+            </div>
+            <div class="control-item">
+                <label>Opacità Texture:</label>
+                <input type="range" id="textureOpacitySlider" min="0" max="1" value="0.8" step="0.05">
+                <span id="textureOpacityValue">0.8</span>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <div class="control-item">
+              <label>Audio:</label>
+              <button id="audioToggleBtn">🔊 Attivo</button>
+            </div>
+            <div class="control-item">
+              <label>Volume Audio:</label>
+              <input type="range" id="audioVolumeSlider" min="0" max="1" value="0.3" step="0.05">
+              <span id="audioVolumeValue">0.3</span>
+            </div>
+            <div class="control-item">
+              <label>Sensibilità:</label>
+              <input type="range" id="audioSensitivitySlider" min="0.1" max="3" value="1" step="0.1">
+              <span id="audioSensitivityValue">1.0</span>
+            </div>
+          </div>
+
+        <!-- NUOVO: Controlli per oggetti geometrici -->
+        <div class="object-controls">
+            <h4>🎲 Oggetti Geometrici</h4>
+            <div class="control-item">
+                <button id="addSphereBtn" class="object">➕ Sfera</button>
+                <button id="addCubeBtn" class="object">➕ Cubo</button>
+            </div>
+            <div class="control-item">
+                <button id="clearObjectsBtn" class="danger">🗑️ Rimuovi Tutti</button>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <div class="control-item">
+                <button id="resetBtn">🔄 Reset</button>
+                <button id="windBtn">💨 Vento</button>
+                <button id="togglePinBtn">📌 Pin/Unpin</button>
+            </div>
+            <div class="control-item">
+                <button id="pauseBtn">⏸️ Pausa</button>
+                <button class="danger" id="toggleControlsBtn">❌ Nascondi</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- FPS Counter -->
+    <div class="fps-counter" id="fpsCounter">FPS: 60</div>
+    
+    <!-- Instructions -->
+    <div class="instructions" id="instructions">
+        <h4>📖 Istruzioni</h4>
+        <ul>
+            <li><strong>Click sinistro + trascina:</strong> Ruota camera</li>
+            <li><strong>Shift + click + trascina:</strong> Deforma tessuto</li>
+            <li><strong>Ctrl + click + trascina:</strong> Muovi oggetti</li>
+            <li><strong>Rotella mouse:</strong> Zoom in/out</li>
+            <li><strong>Tasto R:</strong> Reset tessuto</li>
+            <li><strong>Barra spazio:</strong> Effetto vento</li>
+            <li><strong>Tasto 1:</strong> Aggiungi sfera casuale</li>
+            <li><strong>Tasto 2:</strong> Aggiungi cubo casuale</li>
+            <li><strong>Delete/Backspace:</strong> Rimuovi ultimo oggetto</li>
+            <li><strong>Tasto H:</strong> Mostra/nascondi controlli</li>
+            <li><strong>Tasto P:</strong> Pausa/riprendi simulazione</li>
+        </ul>
+        <div style="margin-top: 10px; padding: 8px; background: rgba(33, 150, 243, 0.2); border-radius: 4px; border-left: 3px solid #2196F3;">
+            <strong>💡 Suggerimento:</strong> Gli oggetti geometrici interagiscono fisicamente con il tessuto creando collisioni realistiche!
+        </div>
+    </div>
+    
+    <script type="module">
+        import './src/main.js';
+    </script>
+</body>
+</html>
